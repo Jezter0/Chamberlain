@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/manager.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///manager.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -30,8 +30,8 @@ def index():
 def register():
     if request.method == 'POST':
         username = request.form['username']
-        password = request.form['password']
-        confirm = request.form['confirmation']
+        password = request.form['password'].encode('utf-8')
+        confirm = request.form['confirmation'].encode('utf-8')
         
         # Check if user already exists
         if User.query.filter_by(username=username).first():
