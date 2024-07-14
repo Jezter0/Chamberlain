@@ -1,0 +1,10 @@
+#CS50 Final Project Requirement
+FINANCE PLANNER
+=> Create a webapp to track income, expense, and saving goals. Include features such as visual charts and budget category analysis.
+
+Functional Requirement:
+(x) User Registration and Login
+(x) Expense Tracking
+(x) Income Tracking
+(x) Reporting -> Use Graphs 
+(x) Budgeting
