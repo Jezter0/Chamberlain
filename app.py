@@ -1,12 +1,18 @@
-from flask import Flask, request, render_template, redirect, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
-import bcrypt
 import os
 
+from flask import Flask, request, render_template, redirect, url_for, flash, session
+from flask_session import Session
+from flask_sqlalchemy import SQLAlchemy
+import bcrypt
+
+from helpers import login_required
+
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///manager.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
 
 db = SQLAlchemy(app)
 
@@ -22,7 +28,16 @@ class Transaction(db.Model):
     date = db.Column(db.Date, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
+@app.after_request
+def after_request(response):
+    """Ensure responses aren't cached"""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Expires"] = 0
+    response.headers["Pragma"] = "no-cache"
+    return response
+
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
@@ -50,19 +65,49 @@ def register():
         # Add and commit the new user to the database
         db.session.add(new_user)
         db.session.commit()
+
+        user = User.query.filter_by(username=username).first()
+        session["user_id"] = user.id
         
-        flash('Registration successful!', 'success')
-        return redirect(url_for('index'))
+        return redirect("/")
+    else:
+        return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+
+    session.clear()
+
+    if request.method == 'POST':
+        if not request.form.get("username"):
+            return render_template('login.html')
+        elif not request.form.get("password"):
+            return render_template("login.html")
+
+        username = request.form['username']
+        password = request.form['password'].encode('utf-8')
+        
+        user = User.query.filter_by(username=username).first()
+        if user and bcrypt.checkpw(password, user.password):
+            session["user_id"] = user.id
+            return redirect("/")
+        else:
+            redirect(url_for("login"))
+    else:
+        return render_template('login.html')
     
-    return render_template('register.html')
+@app.route("/logout")
+def logout():
+    """Log user out"""
+
+    # Forget any user_id
+    session.clear()
+
+    # Redirect user to login form
+    return redirect("/")
+
 
 if __name__ == '__main__':
-    if not os.path.exists('instance'):
-        os.makedirs('instance')
-    
     with app.app_context():  # Ensures app context is active
-        print("Creating all tables in the database")
         db.create_all()  # Create database tables
-    
-    print("Flask application is running!")
     app.run(debug=True)
