@@ -39,7 +39,8 @@ def after_request(response):
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html')
+    user = User.query.filter_by(id=session["user_id"]).first()
+    return render_template('index.html', user=user)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
