@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Add Transaction
+{% endblock %}
+
+{% block main %}
+    <form action="/add" method="post">
+        <div class="mb-3">
+            <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="amount" placeholder="Amount" type="number" required>
+        </div>
+        <div class="mb-3">
+            <input class="form-control mx-auto w-auto" name="category" placeholder="Category" type="text" required>
+        </div>
+        <div class="mb-3">
+            <select class="form-select mx-auto w-auto" aria-label="Default select example" id="type" name="type" required>
+                <option value="" disabled selected>Type</option>
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <input class="form-control mx-auto w-auto" name="date" placeholder="Date" type="date" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Add Transaction</button>
+    </form>
+{% endblock %}

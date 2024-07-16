@@ -25,6 +25,7 @@ class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50), nullable=False)
+    type = db.Column(db.String(10), nullable=False)
     date = db.Column(db.Date, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -42,6 +43,18 @@ def index():
     user = User.query.filter_by(id=session["user_id"]).first()
     return render_template('index.html', user=user)
 
+@app.route('/add', methods=['GET', 'POST'])
+@login_required
+def add():
+    if request.method == 'POST':
+        amount = request.form['amount']
+        category = request.form['category']
+        type = request.form['type']
+        date = request.form['date']
+    else:        
+        return render_template('add.html')
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -49,7 +62,6 @@ def register():
         password = request.form['password'].encode('utf-8')
         confirm = request.form['confirmation'].encode('utf-8')
         
-        # Check if user already exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists', 'danger')
             return redirect(url_for('register'))
@@ -57,13 +69,10 @@ def register():
             flash('Password and Confirmation do not match', 'danger')
             return redirect(url_for('register'))
         
-        # Hash the password
         hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
         
-        # Create a new user
         new_user = User(username=username, password=hashed_password)
         
-        # Add and commit the new user to the database
         db.session.add(new_user)
         db.session.commit()
 
@@ -100,15 +109,12 @@ def login():
 @app.route("/logout")
 def logout():
     """Log user out"""
-
-    # Forget any user_id
     session.clear()
 
-    # Redirect user to login form
     return redirect("/")
 
 
 if __name__ == '__main__':
-    with app.app_context():  # Ensures app context is active
-        db.create_all()  # Create database tables
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
