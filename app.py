@@ -3,6 +3,7 @@ import os
 from flask import Flask, request, render_template, redirect, url_for, flash, session
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 import bcrypt
 
 from helpers import login_required
@@ -18,14 +19,15 @@ db = SQLAlchemy(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    money = db.Column(db.Numeric(precision=10, scale=2))
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    amount = db.Column(db.Float, nullable=False)
+    amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
     category = db.Column(db.String(50), nullable=False)
-    type = db.Column(db.String(10), nullable=False)
+    transaction_type = db.Column(db.String(10), nullable=False)
     date = db.Column(db.Date, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -49,8 +51,17 @@ def add():
     if request.method == 'POST':
         amount = request.form['amount']
         category = request.form['category']
-        type = request.form['type']
+        transaction_type = request.form['type']
         date = request.form['date']
+        transaction_date = datetime.strptime(date, '%Y-%m-%d').date()
+        id = session["user_id"]
+        
+        new_transaction = Transaction(amount=amount, category=category, transaction_type=transaction_type, date=transaction_date, user_id=id)
+
+        db.session.add(new_transaction)
+        db.session.commit()
+
+        return redirect('/')
     else:        
         return render_template('add.html')
 
@@ -71,7 +82,7 @@ def register():
         
         hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
         
-        new_user = User(username=username, password=hashed_password)
+        new_user = User(username=username, password=hashed_password, money=0)
         
         db.session.add(new_user)
         db.session.commit()
@@ -102,7 +113,7 @@ def login():
             session["user_id"] = user.id
             return redirect("/")
         else:
-            redirect(url_for("login"))
+            return redirect(url_for("login"))
     else:
         return render_template('login.html')
     
