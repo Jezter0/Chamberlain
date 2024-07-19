@@ -5,5 +5,29 @@
 {% endblock %}
 
 {% block main %}
-    <h1>Hi, {{ user.username }}</h1>
+    <div class="container">
+        <div class="section">
+            <h2>Latest Transactions</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date of Transaction</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction["date"] }}</td>
+                            <td>{{ transaction["category"] }}</td>
+                            <td>{{ transaction["amount"] }}</td>
+                            <td>{{ transaction["transaction_type"] }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 {% endblock %}
