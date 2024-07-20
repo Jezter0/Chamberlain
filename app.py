@@ -43,7 +43,7 @@ def after_request(response):
 @login_required
 def index():
     user = User.query.filter_by(id=session["user_id"]).first()
-    transaction = Transaction.query.filter_by(user_id=session["user_id"])
+    transaction = Transaction.query.filter_by(user_id=session["user_id"]).order_by(Transaction.id.desc()).limit(10).all()
     return render_template('index.html', user=user, transactions=transaction)
 
 @app.route('/add', methods=['GET', 'POST'])
