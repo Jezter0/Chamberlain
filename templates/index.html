@@ -6,24 +6,38 @@
 
 {% block main %}
     <div class="container">
+        <div class="section header">
+            <div class="row">
+                <div class="col">
+                    <h2>Wealth</h2>
+                    <h2>{{ user["money"] }}</h2>
+                </div>
+                <div class="col">
+                    <h2>Budget</h2>
+                    <h2>{{ user["budget"] }}</h2>
+                </div>
+            </div>
+        </div>
         <div class="section">
             <h2>Latest Transactions</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Date of Transaction</th>
-                        <th>Category</th>
                         <th>Amount</th>
+                        <th>Category</th>
                         <th>Type</th>
+                        <th>Description</th>
+                        <th>Date of Transaction</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for transaction in transactions %}
                         <tr>
-                            <td>{{ transaction["date"] }}</td>
-                            <td>{{ transaction["category"] }}</td>
                             <td>{{ transaction["amount"] }}</td>
+                            <td>{{ transaction["category"] }}</td>
                             <td>{{ transaction["transaction_type"] }}</td>
+                            <td>{{ transaction["description"] }}</td>
+                            <td>{{ transaction["date"] }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

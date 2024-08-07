@@ -4,6 +4,7 @@ from flask import Flask, request, render_template, redirect, url_for, flash, ses
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from decimal import Decimal
 import bcrypt
 
 from helpers import login_required
@@ -20,6 +21,7 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     money = db.Column(db.Numeric(precision=10, scale=2))
+    budget = db.Column(db.Numeric(precision=10, scale=2))
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
 
@@ -29,6 +31,7 @@ class Transaction(db.Model):
     category = db.Column(db.String(50), nullable=False)
     transaction_type = db.Column(db.String(10), nullable=False)
     date = db.Column(db.Date, nullable=False)
+    description = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 @app.after_request
@@ -50,14 +53,25 @@ def index():
 @login_required
 def add():
     if request.method == 'POST':
-        amount = request.form['amount']
+        amount = Decimal(request.form['amount'])
         category = request.form['category']
         transaction_type = request.form['type']
         date = request.form['date']
+        description = request.form['description']
         transaction_date = datetime.strptime(date, '%Y-%m-%d').date()
         id = session["user_id"]
         
-        new_transaction = Transaction(amount=amount, category=category, transaction_type=transaction_type, date=transaction_date, user_id=id)
+        new_transaction = Transaction(amount=amount, category=category, transaction_type=transaction_type, date=transaction_date, user_id=id, description=description)
+
+        # Update the user's money from income or expense
+        user = User.query.filter_by(id=id).first()
+        if transaction_type == 'income':
+            user.money += amount
+            db.session.add(user)
+        else:
+            user.money -= amount
+            db.session.add(user)
+
 
         db.session.add(new_transaction)
         db.session.commit()
