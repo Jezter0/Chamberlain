@@ -3,9 +3,13 @@ import os
 from flask import Flask, request, render_template, redirect, url_for, flash, session
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
+from dash import dcc, html, Input, Output
 from datetime import datetime
 from decimal import Decimal
 import bcrypt
+import dash
+import plotly.express as px
+import pandas as pd
 
 from helpers import login_required
 
@@ -34,6 +38,18 @@ class Transaction(db.Model):
     description = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
+# Initialize Dash
+dash_app = dash.Dash(
+    __name__,
+    server=app,
+    routes_pathname_prefix='/dash/'
+)
+
+# Placeholder layout - will update with data after user is logged in
+dash_app.layout = html.Div([
+    dcc.Graph(id='bar-chart')
+])
+
 @app.after_request
 def after_request(response):
     """Ensure responses aren't cached"""
@@ -48,6 +64,34 @@ def index():
     user = User.query.filter_by(id=session["user_id"]).first()
     transaction = Transaction.query.filter_by(user_id=session["user_id"]).order_by(Transaction.id.desc()).limit(10).all()
     return render_template('index.html', user=user, transactions=transaction)
+
+@app.route('/graphs')
+@login_required
+def graphs():
+    return redirect('/dash/')
+
+@dash_app.callback(
+    Output('bar-chart', 'figure'),
+    [Input('bar-chart', 'id')]  # Dummy input just to trigger the callback
+)
+def update_graph(_):
+    user_id = session.get("user_id")
+    if user_id:
+        # Query the transactions for the logged-in user
+        transactions = Transaction.query.filter_by(user_id=user_id).all()
+
+        # Convert to DataFrame
+        df = pd.DataFrame([{
+            "Category": t.category,
+            "Amount": float(t.amount)  # Convert Decimal to float
+        } for t in transactions])
+
+        # Create a bar chart using Plotly
+        fig = px.bar(df, x="Category", y="Amount", title="Spending by Category")
+        return fig
+
+    # Return an empty figure if no data
+    return px.bar(title="No data available")
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -141,6 +185,4 @@ def logout():
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
