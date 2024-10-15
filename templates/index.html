@@ -19,6 +19,9 @@
             </div>
         </div>
         <div class="section">
+            {% if not transaction %}
+                <h3><a href="/add">Add Transaction</a></h3>
+            {% else %}
             <h2>Latest Transactions</h2>
             <table>
                 <thead>
@@ -42,6 +45,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </div>
     </div>
 {% endblock %}

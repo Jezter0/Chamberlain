@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from dash import dcc, html, Input, Output
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import Enum
 import bcrypt
 import dash
 import plotly.express as px
@@ -24,19 +25,41 @@ db = SQLAlchemy(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    money = db.Column(db.Numeric(precision=10, scale=2))
     budget = db.Column(db.Numeric(precision=10, scale=2))
+    money = db.Column(db.Numeric(precision=10, scale=2), default=0)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+
+    transactions = db.relationship('Transaction', backref='user', lazy=True)
+
+class Category(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
-    transaction_type = db.Column(db.String(10), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
+    transaction_type = db.Column(Enum('income', 'expense', name='transaction_type'), nullable=False)
     date = db.Column(db.Date, nullable=False)
     description = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    category = db.relationship('Category', backref='transactions')
+
+def seed_categories():
+    categories = [
+        'Groceries', 'Food', 'Rent', 'Salary', 'Transportation', 'Utilities', 
+        'Entertainment', 'Freelancing', 'Health', 'Gifts', 'Investments',
+        'Business Profits', 'Dividends'
+    ]
+
+    for name in categories:
+        if not Category.query.filter_by(name=name).first():
+            category = Category(name=name)
+            db.session.add(category)
+
+    db.session.commit()
 
 # Initialize Dash
 dash_app = dash.Dash(
@@ -47,6 +70,7 @@ dash_app = dash.Dash(
 
 # Placeholder layout - will update with data after user is logged in
 dash_app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
     dcc.Graph(id='bar-chart')
 ])
 
@@ -72,17 +96,17 @@ def graphs():
 
 @dash_app.callback(
     Output('bar-chart', 'figure'),
-    [Input('bar-chart', 'id')]  # Dummy input just to trigger the callback
+    [Input('url', 'search')]
 )
-def update_graph(_):
-    user_id = session.get("user_id")
+def update_graph(search):
+    user_id = parse_user_id_from_url(search)
     if user_id:
         # Query the transactions for the logged-in user
         transactions = Transaction.query.filter_by(user_id=user_id).all()
 
         # Convert to DataFrame
         df = pd.DataFrame([{
-            "Category": t.category,
+            "Category": t.category.name,
             "Amount": float(t.amount)  # Convert Decimal to float
         } for t in transactions])
 
@@ -92,6 +116,11 @@ def update_graph(_):
 
     # Return an empty figure if no data
     return px.bar(title="No data available")
+
+def parse_user_id_from_url(search):
+    from urllib.parse import parse_qs
+    query_params = parse_qs(search[1:])  # Strip '?' from search
+    return query_params.get('user_id', [None])[0]
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -185,4 +214,9 @@ def logout():
 
 
 if __name__ == '__main__':
+    with app.app_context():  # Important to set the app context
+        db.create_all()      
     app.run(debug=True)
+
+with app.app_context():
+    seed_categories()
