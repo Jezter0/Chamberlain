@@ -69,3 +69,30 @@ select {
     border-radius: 4px;
     background-color: #f1f1f1;
 }
+
+tr.selected {
+    background-color: #d3d3d3; 
+}
+
+#context-menu {
+    position: absolute;
+    display: none;
+    background-color: white;
+    border: 1px solid #ccc;
+    z-index: 1000;
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+    padding: 10px;
+}
+#context-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+#context-menu ul li {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+#context-menu ul li:hover {
+    background-color: #f0f0f0;
+}
+

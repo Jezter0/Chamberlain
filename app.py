@@ -80,6 +80,7 @@ dash_app = dash.Dash(
 # Placeholder layout - will update with data after user is logged in
 dash_app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
+    dcc.Store(id='user-id'),
     dcc.Graph(id='bar-chart')
 ])
 
@@ -103,7 +104,7 @@ def index():
 @app.route('/graphs')
 @login_required
 def graphs():
-    return redirect('/dash/')
+    return redirect(f'/dash/?user_id={session["user_id"]}')
 
 @dash_app.callback(
     Output('bar-chart', 'figure'),
@@ -115,22 +116,23 @@ def update_graph(search):
         # Query the transactions for the logged-in user
         transactions = Transaction.query.filter_by(user_id=user_id).all()
 
-        # Convert to DataFrame
-        df = pd.DataFrame([{
-            "Category": t.category.name,
-            "Amount": float(t.amount)  # Convert Decimal to float
-        } for t in transactions])
+        if transactions:
+            # Convert to DataFrame
+            df = pd.DataFrame([{
+                "Category": t.category.name,
+                "Amount": float(t.amount)  # Convert Decimal to float
+            } for t in transactions])
 
-        # Create a bar chart using Plotly
-        fig = px.bar(df, x="Category", y="Amount", title="Spending by Category")
-        return fig
+            # Create a bar chart using Plotly
+            fig = px.bar(df, x="Category", y="Amount", title="Spending by Category")
+            return fig
 
     # Return an empty figure if no data
     return px.bar(title="No data available")
 
 def parse_user_id_from_url(search):
     from urllib.parse import parse_qs
-    query_params = parse_qs(search[1:])  # Strip '?' from search
+    query_params = parse_qs(search[1:])
     return query_params.get('user_id', [None])[0]
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -144,6 +146,14 @@ def add():
         description = request.form['description']
         transaction_date = datetime.strptime(date, '%Y-%m-%d').date()
         id = session["user_id"]
+
+        if transaction_type == 'income' and Category.query.get(category_id).type != 'income':
+            flash('Invalid category for income', 'danger')
+            return redirect('/add')
+
+        if transaction_type == 'expense' and Category.query.get(category_id).type != 'expense':
+            flash('Invalid category for expense', 'danger')
+            return redirect('/add')
         
         new_transaction = Transaction(
             amount=amount, 
@@ -170,6 +180,40 @@ def add():
         income_categories = Category.query.filter_by(type='income').all()
         expense_categories = Category.query.filter_by(type='expense').all()
         return render_template('add.html', income_categories=income_categories, expense_categories=expense_categories)
+    
+    
+@app.route('/edit/<int:transaction_id>', methods=['GET', 'POST'])
+@login_required
+def edit_transaction(transaction_id):
+    transaction = Transaction.query.get(transaction_id)
+    if request.method == 'POST':
+        transaction.amount = request.form['amount']
+        transaction.description = request.form['description']
+        transaction.date = request.form['date']
+        db.session.commit()
+        return redirect('/')
+    
+    return render_template('edit.html', transaction=transaction)
+
+
+@app.route('/delete/<int:transaction_id>', methods=['POST'])
+@login_required
+def delete_transaction(transaction_id):
+    transaction = Transaction.query.get(transaction_id)
+    
+    if transaction and transaction.user_id == session["user_id"]:  
+        user = User.query.filter_by(id=session["user_id"]).first()
+        
+        if transaction.transaction_type == 'income':
+            user.money -= transaction.amount
+        else:
+            user.money += transaction.amount
+        
+        db.session.delete(transaction)
+        db.session.add(user)
+        db.session.commit()
+        
+    return redirect('/')
 
 
 @app.route('/register', methods=['GET', 'POST'])

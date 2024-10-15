@@ -23,7 +23,7 @@
                 <h3><a href="/add">Add Transaction</a></h3>
             {% else %}
             <h2>Latest Transactions</h2>
-            <table>
+            <table id="transaction-table">
                 <thead>
                     <tr>
                         <th>Amount</th>
@@ -35,7 +35,7 @@
                 </thead>
                 <tbody>
                     {% for transaction in transactions %}
-                        <tr>
+                        <tr data-transaction-id="{{ transaction.id }}">
                             <td>{{ transaction.amount }}</td>
                             <td>{{ transaction.category.name }}</td>
                             <td>{{ transaction.transaction_type }}</td>
@@ -48,4 +48,80 @@
             {% endif %}
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const table = document.getElementById('transaction-table');
+            let selectedRow = null;
+
+            // Context menu
+            const contextMenu = document.createElement('div');
+            contextMenu.id = 'context-menu';
+            contextMenu.innerHTML = `
+                <ul>
+                    <li id="edit-transaction">Edit</li>
+                    <li id="delete-transaction">Delete</li>
+                </ul>
+            `;
+            document.body.appendChild(contextMenu);
+
+            // Function to handle row selection
+            function selectRow(row) {
+                if (selectedRow) {
+                    selectedRow.classList.remove('selected');
+                }
+                selectedRow = row;
+                row.classList.add('selected');
+            }
+
+            // Handle right-click (context menu)
+            table.addEventListener('contextmenu', function (event) {
+                event.preventDefault();
+
+                // Select the row
+                const row = event.target.closest('tr');
+                if (row) {
+                    selectRow(row);
+                }
+
+                // Show the context menu
+                contextMenu.style.display = 'block';
+                contextMenu.style.left = `${event.pageX}px`;
+                contextMenu.style.top = `${event.pageY}px`;
+            });
+
+            // Hide the context menu when clicking outside
+            document.addEventListener('click', function () {
+                contextMenu.style.display = 'none';
+            });
+
+            // Handle "Edit" and "Delete" options
+            document.getElementById('edit-transaction').addEventListener('click', function () {
+                const transactionId = selectedRow.getAttribute('data-transaction-id');
+                if (transactionId) {
+                    window.location.href = `/edit/${transactionId}`; // Navigate to the edit page
+                }
+            });
+
+            document.getElementById('delete-transaction').addEventListener('click', function () {
+                const transactionId = selectedRow.getAttribute('data-transaction-id');
+                if (transactionId) {
+                    if (confirm('Are you sure you want to delete this transaction?')) {
+                        // Send a delete request
+                        fetch(`/delete/${transactionId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}' // Add CSRF token for security if using Flask
+                            }
+                        }).then(response => {
+                            if (response.ok) {
+                                selectedRow.remove(); // Remove the row from the table
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    </script>    
 {% endblock %}
