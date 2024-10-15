@@ -19,7 +19,7 @@
             </div>
         </div>
         <div class="section">
-            {% if not transaction %}
+            {% if transactions|length == 0 %}
                 <h3><a href="/add">Add Transaction</a></h3>
             {% else %}
             <h2>Latest Transactions</h2>
@@ -36,11 +36,11 @@
                 <tbody>
                     {% for transaction in transactions %}
                         <tr>
-                            <td>{{ transaction["amount"] }}</td>
-                            <td>{{ transaction["category"] }}</td>
-                            <td>{{ transaction["transaction_type"] }}</td>
-                            <td>{{ transaction["description"] }}</td>
-                            <td>{{ transaction["date"] }}</td>
+                            <td>{{ transaction.amount }}</td>
+                            <td>{{ transaction.category.name }}</td>
+                            <td>{{ transaction.transaction_type }}</td>
+                            <td>{{ transaction.description }}</td>
+                            <td>{{ transaction.date }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

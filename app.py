@@ -35,6 +35,7 @@ class User(db.Model):
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
+    type = db.Column(Enum('income', 'expense', name='category_type'), nullable=False)
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -48,15 +49,23 @@ class Transaction(db.Model):
     category = db.relationship('Category', backref='transactions')
 
 def seed_categories():
-    categories = [
-        'Groceries', 'Food', 'Rent', 'Salary', 'Transportation', 'Utilities', 
-        'Entertainment', 'Freelancing', 'Health', 'Gifts', 'Investments',
-        'Business Profits', 'Dividends'
+    income_categories = [
+        'Salary', 'Freelancing', 'Business Profits', 'Dividends'
     ]
-
-    for name in categories:
+    
+    expense_categories = [
+        'Groceries', 'Food', 'Rent', 'Transportation', 'Utilities', 
+        'Entertainment', 'Health', 'Gifts', 'Investments'
+    ]
+    
+    for name in income_categories:
         if not Category.query.filter_by(name=name).first():
-            category = Category(name=name)
+            category = Category(name=name, type='income')  
+            db.session.add(category)
+    
+    for name in expense_categories:
+        if not Category.query.filter_by(name=name).first():
+            category = Category(name=name, type='expense')
             db.session.add(category)
 
     db.session.commit()
@@ -86,8 +95,10 @@ def after_request(response):
 @login_required
 def index():
     user = User.query.filter_by(id=session["user_id"]).first()
-    transaction = Transaction.query.filter_by(user_id=session["user_id"]).order_by(Transaction.id.desc()).limit(10).all()
-    return render_template('index.html', user=user, transactions=transaction)
+    transactions = db.session.query(Transaction).join(Category).filter(
+        Transaction.user_id == session["user_id"]
+    ).order_by(Transaction.id.desc()).limit(10).all()
+    return render_template('index.html', user=user, transactions=transactions)
 
 @app.route('/graphs')
 @login_required
@@ -127,31 +138,38 @@ def parse_user_id_from_url(search):
 def add():
     if request.method == 'POST':
         amount = Decimal(request.form['amount'])
-        category = request.form['category']
+        category_id = request.form['category']
         transaction_type = request.form['type']
         date = request.form['date']
         description = request.form['description']
         transaction_date = datetime.strptime(date, '%Y-%m-%d').date()
         id = session["user_id"]
         
-        new_transaction = Transaction(amount=amount, category=category, transaction_type=transaction_type, date=transaction_date, user_id=id, description=description)
+        new_transaction = Transaction(
+            amount=amount, 
+            category_id=category_id, 
+            transaction_type=transaction_type, 
+            date=transaction_date, 
+            user_id=id, 
+            description=description
+        )
 
         # Update the user's money from income or expense
         user = User.query.filter_by(id=id).first()
         if transaction_type == 'income':
             user.money += amount
-            db.session.add(user)
         else:
             user.money -= amount
-            db.session.add(user)
 
-
+        db.session.add(user)
         db.session.add(new_transaction)
         db.session.commit()
 
         return redirect('/')
     else:        
-        return render_template('add.html')
+        income_categories = Category.query.filter_by(type='income').all()
+        expense_categories = Category.query.filter_by(type='expense').all()
+        return render_template('add.html', income_categories=income_categories, expense_categories=expense_categories)
 
 
 @app.route('/register', methods=['GET', 'POST'])
