@@ -81,7 +81,10 @@ dash_app = dash.Dash(
 dash_app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='user-id'),
-    dcc.Graph(id='bar-chart')
+    html.Div([
+        dcc.Graph(id='income-pie-chart'),
+        dcc.Graph(id='expense-pie-chart'),
+    ])
 ])
 
 @app.after_request
@@ -107,7 +110,8 @@ def graphs():
     return redirect(f'/dash/?user_id={session["user_id"]}')
 
 @dash_app.callback(
-    Output('bar-chart', 'figure'),
+    [Output('income-pie-chart', 'figure'),
+     Output('expense-pie-chart', 'figure')],
     [Input('url', 'search')]
 )
 def update_graph(search):
@@ -117,18 +121,42 @@ def update_graph(search):
         transactions = Transaction.query.filter_by(user_id=user_id).all()
 
         if transactions:
-            # Convert to DataFrame
-            df = pd.DataFrame([{
-                "Category": t.category.name,
-                "Amount": float(t.amount)  # Convert Decimal to float
-            } for t in transactions])
+            # Separate income and expense transactions
+            income_transactions = [t for t in transactions if t.transaction_type == 'income']
+            expense_transactions = [t for t in transactions if t.transaction_type == 'expense']
 
-            # Create a bar chart using Plotly
-            fig = px.bar(df, x="Category", y="Amount", title="Spending by Category")
-            return fig
+            # Create pie chart for income transactions
+            if income_transactions:
+                df_income = pd.DataFrame([{
+                    "Category": t.category.name,
+                    "Amount": float(t.amount)  
+                } for t in income_transactions])
 
-    # Return an empty figure if no data
-    return px.bar(title="No data available")
+                # Debug: Print DataFrame to check if it has data
+                print("Income DataFrame:", df_income)
+
+                fig_income = px.pie(df_income, names="Category", values="Amount", title="Income by Category")
+            else:
+                fig_income = px.pie(title="No income data available")
+
+            # Create pie chart for expense transactions
+            if expense_transactions:
+                df_expense = pd.DataFrame([{
+                    "Category": t.category.name,
+                    "Amount": float(t.amount)
+                } for t in expense_transactions])
+
+                # Debug: Print DataFrame to check if it has data
+                print("Expense DataFrame:", df_expense)
+
+                fig_expense = px.pie(df_expense, names="Category", values="Amount", title="Expenses by Category")
+            else:
+                fig_expense = px.pie(title="No expense data available")
+
+            return fig_income, fig_expense
+
+    # Return empty figures if no data
+    return px.pie(title="No data available"), px.pie(title="No data available")
 
 def parse_user_id_from_url(search):
     from urllib.parse import parse_qs
@@ -276,9 +304,7 @@ def logout():
 
 
 if __name__ == '__main__':
-    with app.app_context():  # Important to set the app context
-        db.create_all()      
+    with app.app_context():
+        db.create_all()
+        seed_categories()      
     app.run(debug=True)
-
-with app.app_context():
-    seed_categories()
