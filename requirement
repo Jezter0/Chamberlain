@@ -3,8 +3,8 @@ FINANCE PLANNER
 => Create a webapp to track income, expense, and saving goals. Include features such as visual charts and budget category analysis.
 
 Functional Requirement:
-(x) User Registration and Login
-(x) Expense Tracking
-(x) Income Tracking
+(v) User Registration and Login
+(v) Expense Tracking
+(v) Income Tracking
 (x) Reporting -> Use Graphs -> Expense/Income -> Sort by day/week/month/year
-(x) Budgeting
+(x) Automatic Report by Month

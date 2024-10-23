@@ -4,9 +4,9 @@ from flask import Flask, request, render_template, redirect, url_for, flash, ses
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
 from dash import dcc, html, Input, Output
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
-from sqlalchemy import Enum
+from sqlalchemy import Enum, func
 import bcrypt
 import dash
 import plotly.express as px
@@ -81,10 +81,25 @@ dash_app = dash.Dash(
 dash_app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='user-id'),
+    
+    # Dropdown or Radio buttons for selecting time filter
     html.Div([
-        dcc.Graph(id='income-pie-chart'),
-        dcc.Graph(id='expense-pie-chart'),
-    ])
+        dcc.RadioItems(
+            id='time-filter',
+            options=[
+                {'label': 'Day', 'value': 'day'},
+                {'label': 'Week', 'value': 'week'},
+                {'label': 'Month', 'value': 'month'},
+                {'label': 'Year', 'value': 'year'}
+            ],
+            value='month',
+            labelStyle={'display': 'inline-block'}
+        )
+    ], style={'padding': '10px'}),
+
+    
+    dcc.Graph(id='income-pie-chart'),
+    dcc.Graph(id='expense-pie-chart')
 ])
 
 @app.after_request
@@ -109,16 +124,33 @@ def index():
 def graphs():
     return redirect(f'/dash/?user_id={session["user_id"]}')
 
+
 @dash_app.callback(
     [Output('income-pie-chart', 'figure'),
      Output('expense-pie-chart', 'figure')],
-    [Input('url', 'search')]
+    [Input('url', 'search'),
+     Input('time-filter', 'value')]
 )
-def update_graph(search):
+def update_graph(search, time_filter):
     user_id = parse_user_id_from_url(search)
     if user_id:
-        # Query the transactions for the logged-in user
-        transactions = Transaction.query.filter_by(user_id=user_id).all()
+        # Get the current date and calculate the date range based on the selected time filter
+        today = datetime.today()
+
+        if time_filter == 'day':
+            start_date = today
+        elif time_filter == 'week':
+            start_date = today - timedelta(days=7)
+        elif time_filter == 'month':
+            start_date = today.replace(day=1)
+        elif time_filter == 'year':
+            start_date = today.replace(month=1, day=1)
+        
+        # Query transactions for the user within the selected time range
+        transactions = Transaction.query.filter(
+            Transaction.user_id == user_id,
+            Transaction.date >= start_date
+        ).all()
 
         if transactions:
             # Separate income and expense transactions
@@ -129,11 +161,8 @@ def update_graph(search):
             if income_transactions:
                 df_income = pd.DataFrame([{
                     "Category": t.category.name,
-                    "Amount": float(t.amount)  
+                    "Amount": float(t.amount)
                 } for t in income_transactions])
-
-                # Debug: Print DataFrame to check if it has data
-                print("Income DataFrame:", df_income)
 
                 fig_income = px.pie(df_income, names="Category", values="Amount", title="Income by Category")
             else:
@@ -145,9 +174,6 @@ def update_graph(search):
                     "Category": t.category.name,
                     "Amount": float(t.amount)
                 } for t in expense_transactions])
-
-                # Debug: Print DataFrame to check if it has data
-                print("Expense DataFrame:", df_expense)
 
                 fig_expense = px.pie(df_expense, names="Category", values="Amount", title="Expenses by Category")
             else:
@@ -303,8 +329,59 @@ def logout():
     return redirect("/")
 
 
+def seed_database():
+    # Check if there's an existing user or create one
+    user = User.query.filter_by(username='testuser').first()
+    
+    if not user:
+        # Create a dummy user for the seeding process
+        user = User(username='testuser', password=bcrypt.hashpw('password'.encode('utf-8'), bcrypt.gensalt()), money=Decimal('0'))
+        db.session.add(user)
+        db.session.commit()
+
+    # Get the user ID of the dummy user
+    current_user_id = user.id
+
+    # Get income and expense categories
+    salary_category = Category.query.filter_by(name='Salary').first()
+    freelancing_category = Category.query.filter_by(name='Freelancing').first()
+    food_category = Category.query.filter_by(name='Food').first()
+    rent_category = Category.query.filter_by(name='Rent').first()
+    utilities_category = Category.query.filter_by(name='Utilities').first()
+    entertainment_category = Category.query.filter_by(name='Entertainment').first()
+
+    # Generate transactions for two years (2023 and 2024)
+    transactions = [
+        # Income for 2023
+        Transaction(amount=Decimal('3000'), category_id=salary_category.id, transaction_type='income', date=datetime(2023, 1, 1).date(), description='January Salary', user_id=current_user_id),
+        Transaction(amount=Decimal('3000'), category_id=salary_category.id, transaction_type='income', date=datetime(2023, 2, 1).date(), description='February Salary', user_id=current_user_id),
+        Transaction(amount=Decimal('3200'), category_id=freelancing_category.id, transaction_type='income', date=datetime(2023, 3, 5).date(), description='Freelancing Income', user_id=current_user_id),
+
+        # Expenses for 2023
+        Transaction(amount=Decimal('1000'), category_id=rent_category.id, transaction_type='expense', date=datetime(2023, 1, 1).date(), description='January Rent', user_id=current_user_id),
+        Transaction(amount=Decimal('200'), category_id=food_category.id, transaction_type='expense', date=datetime(2023, 1, 15).date(), description='Groceries', user_id=current_user_id),
+        Transaction(amount=Decimal('150'), category_id=utilities_category.id, transaction_type='expense', date=datetime(2023, 2, 10).date(), description='Electricity Bill', user_id=current_user_id),
+        Transaction(amount=Decimal('250'), category_id=entertainment_category.id, transaction_type='expense', date=datetime(2023, 3, 20).date(), description='Concert', user_id=current_user_id),
+
+        # Income for 2024
+        Transaction(amount=Decimal('3500'), category_id=salary_category.id, transaction_type='income', date=datetime(2024, 1, 1).date(), description='January Salary', user_id=current_user_id),
+        Transaction(amount=Decimal('3500'), category_id=salary_category.id, transaction_type='income', date=datetime(2024, 2, 1).date(), description='February Salary', user_id=current_user_id),
+        Transaction(amount=Decimal('3700'), category_id=freelancing_category.id, transaction_type='income', date=datetime(2024, 3, 10).date(), description='Freelancing Income', user_id=current_user_id),
+
+        # Expenses for 2024
+        Transaction(amount=Decimal('1100'), category_id=rent_category.id, transaction_type='expense', date=datetime(2024, 1, 1).date(), description='January Rent', user_id=current_user_id),
+        Transaction(amount=Decimal('250'), category_id=food_category.id, transaction_type='expense', date=datetime(2024, 1, 15).date(), description='Groceries', user_id=current_user_id),
+        Transaction(amount=Decimal('175'), category_id=utilities_category.id, transaction_type='expense', date=datetime(2024, 2, 10).date(), description='Electricity Bill', user_id=current_user_id),
+        Transaction(amount=Decimal('300'), category_id=entertainment_category.id, transaction_type='expense', date=datetime(2024, 3, 20).date(), description='Movie Night', user_id=current_user_id)
+    ]
+
+    # Add transactions to the database
+    db.session.add_all(transactions)
+    db.session.commit()
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         seed_categories()      
+        seed_database()
     app.run(debug=True)
