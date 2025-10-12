@@ -3,14 +3,10 @@ import os
 from flask import Flask, request, render_template, redirect, url_for, flash, session
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
-from dash import dcc, html, Input, Output
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Enum, func
+from sqlalchemy import Enum, func, case
 import bcrypt
-import dash
-import plotly.express as px
-import pandas as pd
 
 from helpers import login_required
 
@@ -70,37 +66,6 @@ def seed_categories():
 
     db.session.commit()
 
-# Initialize Dash
-dash_app = dash.Dash(
-    __name__,
-    server=app,
-    routes_pathname_prefix='/dash/'
-)
-
-# Placeholder layout - will update with data after user is logged in
-dash_app.layout = html.Div([
-    dcc.Location(id='url', refresh=False),
-    dcc.Store(id='user-id'),
-    
-    # Dropdown or Radio buttons for selecting time filter
-    html.Div([
-        dcc.RadioItems(
-            id='time-filter',
-            options=[
-                {'label': 'Day', 'value': 'day'},
-                {'label': 'Week', 'value': 'week'},
-                {'label': 'Month', 'value': 'month'},
-                {'label': 'Year', 'value': 'year'}
-            ],
-            value='month',
-            labelStyle={'display': 'inline-block'}
-        )
-    ], style={'padding': '10px'}),
-
-    
-    dcc.Graph(id='income-pie-chart'),
-    dcc.Graph(id='expense-pie-chart')
-])
 
 @app.after_request
 def after_request(response):
@@ -109,7 +74,7 @@ def after_request(response):
     response.headers["Expires"] = 0
     response.headers["Pragma"] = "no-cache"
     return response
-
+    
 @app.route('/')
 @login_required
 def index():
@@ -119,75 +84,47 @@ def index():
     ).order_by(Transaction.id.desc()).limit(10).all()
     return render_template('index.html', user=user, transactions=transactions)
 
-@app.route('/graphs')
+
+@app.route("/graphs")
 @login_required
 def graphs():
-    return redirect(f'/dash/?user_id={session["user_id"]}')
+    user_id = session["user_id"]
 
+    # Get all transactions grouped by date
+    results = (
+    db.session.query(
+        Transaction.date,
+        func.sum(
+            case(
+                (Transaction.transaction_type == "income", Transaction.amount),
+                else_=0
+            )
+        ).label("income"),
+        func.sum(
+            case(
+                (Transaction.transaction_type == "expense", Transaction.amount),
+                else_=0
+            )
+        ).label("expense"),
+    )
+    .filter(Transaction.user_id == user_id)
+    .group_by(Transaction.date)
+    .order_by(Transaction.date)
+    .all()
+    )
 
-@dash_app.callback(
-    [Output('income-pie-chart', 'figure'),
-     Output('expense-pie-chart', 'figure')],
-    [Input('url', 'search'),
-     Input('time-filter', 'value')]
-)
-def update_graph(search, time_filter):
-    user_id = parse_user_id_from_url(search)
-    if user_id:
-        # Get the current date and calculate the date range based on the selected time filter
-        today = datetime.today()
+    # Convert query results to list of dicts for JSON
+    chart_data = [
+        {
+            "date": r.date.strftime("%Y-%m-%d"),
+            "income": float(r.income),
+            "expense": float(r.expense),
+        }
+        for r in results
+    ]
 
-        if time_filter == 'day':
-            start_date = today
-        elif time_filter == 'week':
-            start_date = today - timedelta(days=7)
-        elif time_filter == 'month':
-            start_date = today.replace(day=1)
-        elif time_filter == 'year':
-            start_date = today.replace(month=1, day=1)
-        
-        # Query transactions for the user within the selected time range
-        transactions = Transaction.query.filter(
-            Transaction.user_id == user_id,
-            Transaction.date >= start_date
-        ).all()
+    return render_template("charts.html", chart_data=chart_data)
 
-        if transactions:
-            # Separate income and expense transactions
-            income_transactions = [t for t in transactions if t.transaction_type == 'income']
-            expense_transactions = [t for t in transactions if t.transaction_type == 'expense']
-
-            # Create pie chart for income transactions
-            if income_transactions:
-                df_income = pd.DataFrame([{
-                    "Category": t.category.name,
-                    "Amount": float(t.amount)
-                } for t in income_transactions])
-
-                fig_income = px.pie(df_income, names="Category", values="Amount", title="Income by Category")
-            else:
-                fig_income = px.pie(title="No income data available")
-
-            # Create pie chart for expense transactions
-            if expense_transactions:
-                df_expense = pd.DataFrame([{
-                    "Category": t.category.name,
-                    "Amount": float(t.amount)
-                } for t in expense_transactions])
-
-                fig_expense = px.pie(df_expense, names="Category", values="Amount", title="Expenses by Category")
-            else:
-                fig_expense = px.pie(title="No expense data available")
-
-            return fig_income, fig_expense
-
-    # Return empty figures if no data
-    return px.pie(title="No data available"), px.pie(title="No data available")
-
-def parse_user_id_from_url(search):
-    from urllib.parse import parse_qs
-    query_params = parse_qs(search[1:])
-    return query_params.get('user_id', [None])[0]
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required

@@ -6,5 +6,6 @@ Functional Requirement:
 (v) User Registration and Login
 (v) Expense Tracking
 (v) Income Tracking
-(x) Reporting -> Use Graphs -> Expense/Income -> Sort by day/week/month/year
+(v) Reporting -> Use Graphs -> Expense/Income -> Sort by day/week/month/year
 (x) Automatic Report by Month
+(x) Budgeting -> Report for a weekly/yearly budget by category

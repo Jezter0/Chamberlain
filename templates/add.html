@@ -5,71 +5,133 @@
 {% endblock %}
 
 {% block main %}
-    <form action="/add" method="post">
-        <div class="mb-3">
-            <select class="form-select form-control-lg w-100" aria-label="Transaction type" id="transaction-type-select" name="type" onchange="toggleCategory(this)" required>
-                <option value="" disabled selected>Select Type</option>
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-            </select>
+<div class="d-flex justify-content-center">
+    <div class="card shadow-lg border-0 rounded-4 p-4" style="max-width: 600px; width: 100%;">
+        <div class="card-body">
+            <h2 class="card-title mb-4 fw-semibold text-center">
+                <i class="bi bi-plus-circle text-primary me-2"></i>Add New Transaction
+            </h2>
+            <hr class="mb-4">
+
+            <form action="/add" method="post" id="transaction-form">
+                <!-- Transaction Type -->
+                <div class="mb-3">
+                    <label for="transaction-type-select" class="form-label fw-semibold">Transaction Type</label>
+                    <select 
+                        class="form-select form-select-lg" 
+                        id="transaction-type-select" 
+                        name="type" 
+                        onchange="toggleCategory(this)" 
+                        required>
+                        <option value="" disabled selected>Select Type</option>
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                    </select>
+                </div>
+
+                <!-- Expense Categories -->
+                <div id="expense-category" class="mb-3" style="display: none;">
+                    <label for="expense-category-select" class="form-label fw-semibold">Expense Category</label>
+                    <select class="form-select form-select-lg" id="expense-category-select">
+                        {% for category in expense_categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Income Categories -->
+                <div id="income-category" class="mb-3" style="display: none;">
+                    <label for="income-category-select" class="form-label fw-semibold">Income Category</label>
+                    <select class="form-select form-select-lg" id="income-category-select">
+                        {% for categorya in income_categories %}
+                            <option value="{{ categorya.id }}">{{ categorya.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Common Fields -->
+                <div id="common-fields">
+                    <div class="mb-3">
+                        <label for="date" class="form-label fw-semibold">Date</label>
+                        <input 
+                            class="form-control form-control-lg" 
+                            id="date" 
+                            name="date" 
+                            type="date" 
+                            required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="amount" class="form-label fw-semibold">Amount</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light"><i class="bi bi-currency-dollar"></i></span>
+                            <input 
+                                class="form-control" 
+                                id="amount" 
+                                name="amount" 
+                                type="number" 
+                                step="0.01" 
+                                min="0" 
+                                placeholder="Enter amount"
+                                required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="description" class="form-label fw-semibold">Description</label>
+                        <input 
+                            class="form-control form-control-lg" 
+                            id="description" 
+                            name="description" 
+                            type="text" 
+                            placeholder="Short description (e.g., groceries, salary)"
+                            required>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-grid">
+                    <button class="btn btn-primary btn-lg shadow-sm" type="submit">
+                        <i class="bi bi-check-circle me-2"></i>Save Transaction
+                    </button>
+                </div>
+            </form>
         </div>
+    </div>
+</div>
 
-        <div id="expense-category" class="mb-3" style="display: none;">
-            <select class="form-select form-control-lg w-100" id="expense-category-select">
-                {% for category in expense_categories %}
-                    <option value="{{ category.id }}">{{ category.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
+<!-- Styling for smooth reveal -->
+<style>
+    #expense-category, #income-category {
+        transition: all 0.3s ease-in-out;
+    }
+</style>
 
-        <div id="income-category" class="mb-3" style="display: none;">
-            <select class="form-select form-control-lg w-100" id="income-category-select">
-                {% for categorya in income_categories %}
-                    <option value="{{ categorya.id }}">{{ categorya.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
+<!-- JS for category switching & date auto-fill -->
+<script>
+    function toggleCategory(select) {
+        const incomeCategoryDiv = document.getElementById('income-category');
+        const expenseCategoryDiv = document.getElementById('expense-category');
+        const incomeSelect = document.getElementById('income-category-select');
+        const expenseSelect = document.getElementById('expense-category-select');
 
-        <div id="common-fields">
-            <div class="mb-3">
-                <input class="form-control form-control-lg w-100" id="date" name="date" placeholder="Date" type="date" required>
-            </div>
-            <div class="mb-3">
-                <input autocomplete="off" autofocus class="form-control form-control-lg w-100" id="amount" name="amount" placeholder="Amount" type="number" step="0.01" min="0" required>
-            </div>
-            <div class="mb-3">
-                <input class="form-control form-control-lg w-100" id="description" name="description" placeholder="Description" type="text" required>
-            </div>
-        </div>
+        if (select.value === 'income') {
+            incomeCategoryDiv.style.display = 'block';
+            expenseCategoryDiv.style.display = 'none';
+            incomeSelect.setAttribute('name', 'category');
+            expenseSelect.removeAttribute('name');
+        } else if (select.value === 'expense') {
+            expenseCategoryDiv.style.display = 'block';
+            incomeCategoryDiv.style.display = 'none';
+            expenseSelect.setAttribute('name', 'category');
+            incomeSelect.removeAttribute('name');
+        }
+    }
 
-        <button class="btn btn-primary" type="submit">Add Transaction</button>
-    </form>
-
-    <script>
-        function toggleCategory(select) {
-            const incomeCategoryDiv = document.getElementById('income-category');
-            const expenseCategoryDiv = document.getElementById('expense-category');
-            const incomeSelect = document.getElementById('income-category-select');
-            const expenseSelect = document.getElementById('expense-category-select');
-
-            if (select.value === 'income') {
-                incomeCategoryDiv.style.display = 'block';
-                expenseCategoryDiv.style.display = 'none';
-                incomeSelect.setAttribute('name', 'category');
-                expenseSelect.removeAttribute('name');
-            } else if (select.value === 'expense') {
-                expenseCategoryDiv.style.display = 'block';
-                incomeCategoryDiv.style.display = 'none';
-                expenseSelect.setAttribute('name', 'category');
-                incomeSelect.removeAttribute('name');
-            }
-        };
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get today's date in the format YYYY-MM-DD
-            const today = new Date().toISOString().split('T')[0];
-            // Set the value of the date input to today's date
-            document.getElementById('date').value = today;
-        });
-    </script>
-{% endblock %}  
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').value = today;
+    });
+</script>
+{% endblock %}

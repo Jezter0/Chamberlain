@@ -5,123 +5,166 @@
 {% endblock %}
 
 {% block main %}
-    <div class="container">
-        <div class="section header">
-            <div class="row">
-                <div class="col">
-                    <h2>Wealth</h2>
-                    <h2>{{ user["money"] }}</h2>
-                </div>
-                <div class="col">
-                    <h2>Budget</h2>
-                    <h2>{{ user["budget"] }}</h2>
+<div class="container py-5">
+    <!-- Header Section -->
+    <div class="row mb-4 text-center">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="card shadow-sm border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-muted mb-2">Wealth</h5>
+                    <h2 class="text-success fw-bold">{{ user["money"] }}</h2>
                 </div>
             </div>
         </div>
-        <div class="section">
-            {% if transactions|length == 0 %}
-                <h3><a href="/add">Add Transaction</a></h3>
-            {% else %}
-            <h2>Latest Transactions</h2>
-            <table id="transaction-table">
-                <thead>
-                    <tr>
-                        <th>Amount</th>
-                        <th>Category</th>
-                        <th>Type</th>
-                        <th>Description</th>
-                        <th>Date of Transaction</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for transaction in transactions %}
-                        <tr data-transaction-id="{{ transaction.id }}">
-                            <td>{{ transaction.amount }}</td>
-                            <td>{{ transaction.category.name }}</td>
-                            <td>{{ transaction.transaction_type }}</td>
-                            <td>{{ transaction.description }}</td>
-                            <td>{{ transaction.date }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endif %}
+        <div class="col-md-6">
+            <div class="card shadow-sm border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-muted mb-2">Budget</h5>
+                    <h2 class="text-info fw-bold">{{ user["budget"] }}</h2>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const table = document.getElementById('transaction-table');
-            let selectedRow = null;
+    <!-- Transaction Section -->
+    <div class="section">
+        {% if transactions|length == 0 %}
+            <div class="text-center my-5">
+                <h4 class="text-muted">No transactions yet.</h4>
+                <a href="/add" class="btn btn-primary mt-3">
+                    <i class="bi bi-plus-circle"></i> Add Transaction
+                </a>
+            </div>
+        {% else %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="fw-semibold">Latest Transactions</h2>
+                <a href="/add" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-plus"></i> Add New
+                </a>
+            </div>
 
-            // Context menu
-            const contextMenu = document.createElement('div');
-            contextMenu.id = 'context-menu';
-            contextMenu.innerHTML = `
-                <ul>
-                    <li id="edit-transaction">Edit</li>
-                    <li id="delete-transaction">Delete</li>
-                </ul>
-            `;
-            document.body.appendChild(contextMenu);
+            <div class="table-responsive shadow-sm rounded">
+                <table id="transaction-table" class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Amount</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                            <tr data-transaction-id="{{ transaction.id }}">
+                                <td class="fw-bold text-{{ 'danger' if transaction.transaction_type == 'expense' else 'success' }}">
+                                    {{ transaction.amount }}
+                                </td>
+                                <td>{{ transaction.category.name }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'danger' if transaction.transaction_type == 'expense' else 'success' }}">
+                                        {{ transaction.transaction_type | capitalize }}
+                                    </span>
+                                </td>
+                                <td>{{ transaction.description }}</td>
+                                <td>{{ transaction.date }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
 
-            // Function to handle row selection
-            function selectRow(row) {
-                if (selectedRow) {
-                    selectedRow.classList.remove('selected');
-                }
-                selectedRow = row;
-                row.classList.add('selected');
-            }
+<!-- Context Menu Styling -->
+<style>
+    #context-menu {
+        display: none;
+        position: absolute;
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        z-index: 9999;
+        width: 150px;
+    }
+    #context-menu ul {
+        list-style: none;
+        margin: 0;
+        padding: 8px 0;
+    }
+    #context-menu li {
+        padding: 8px 15px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    #context-menu li:hover {
+        background: #f8f9fa;
+    }
+    tr.selected {
+        background-color: rgba(0, 123, 255, 0.1);
+    }
+</style>
 
-            // Handle right-click (context menu)
-            table.addEventListener('contextmenu', function (event) {
-                event.preventDefault();
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const table = document.getElementById('transaction-table');
+        let selectedRow = null;
 
-                // Select the row
-                const row = event.target.closest('tr');
-                if (row) {
-                    selectRow(row);
-                }
+        // Create context menu
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'context-menu';
+        contextMenu.innerHTML = `
+            <ul class="mb-0">
+                <li id="edit-transaction"><i class="bi bi-pencil-square me-2"></i>Edit</li>
+                <li id="delete-transaction" class="text-danger"><i class="bi bi-trash me-2"></i>Delete</li>
+            </ul>
+        `;
+        document.body.appendChild(contextMenu);
 
-                // Show the context menu
-                contextMenu.style.display = 'block';
-                contextMenu.style.left = `${event.pageX}px`;
-                contextMenu.style.top = `${event.pageY}px`;
-            });
+        // Select a row
+        function selectRow(row) {
+            if (selectedRow) selectedRow.classList.remove('selected');
+            selectedRow = row;
+            row.classList.add('selected');
+        }
 
-            // Hide the context menu when clicking outside
-            document.addEventListener('click', function () {
-                contextMenu.style.display = 'none';
-            });
-
-            // Handle "Edit" and "Delete" options
-            document.getElementById('edit-transaction').addEventListener('click', function () {
-                const transactionId = selectedRow.getAttribute('data-transaction-id');
-                if (transactionId) {
-                    window.location.href = `/edit/${transactionId}`; // Navigate to the edit page
-                }
-            });
-
-            document.getElementById('delete-transaction').addEventListener('click', function () {
-                const transactionId = selectedRow.getAttribute('data-transaction-id');
-                if (transactionId) {
-                    if (confirm('Are you sure you want to delete this transaction?')) {
-                        // Send a delete request
-                        fetch(`/delete/${transactionId}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': '{{ csrf_token }}' // Add CSRF token for security if using Flask
-                            }
-                        }).then(response => {
-                            if (response.ok) {
-                                selectedRow.remove(); // Remove the row from the table
-                            }
-                        });
-                    }
-                }
-            });
+        // Show context menu
+        table.addEventListener('contextmenu', function (event) {
+            event.preventDefault();
+            const row = event.target.closest('tr');
+            if (row) selectRow(row);
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = `${event.pageX}px`;
+            contextMenu.style.top = `${event.pageY}px`;
         });
-    </script>    
+
+        // Hide context menu
+        document.addEventListener('click', () => {
+            contextMenu.style.display = 'none';
+        });
+
+        // Handle actions
+        document.getElementById('edit-transaction').addEventListener('click', function () {
+            const id = selectedRow.getAttribute('data-transaction-id');
+            if (id) window.location.href = `/edit/${id}`;
+        });
+
+        document.getElementById('delete-transaction').addEventListener('click', function () {
+            const id = selectedRow.getAttribute('data-transaction-id');
+            if (id && confirm('Are you sure you want to delete this transaction?')) {
+                fetch(`/delete/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                }).then(response => {
+                    if (response.ok) selectedRow.remove();
+                });
+            }
+        });
+    });
+</script>
 {% endblock %}

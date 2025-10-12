@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+
+{% block title %}
+  Graphs
+{% endblock %}
+
+{% block main %}
+<div class="container py-4">
+  <h2 class="text-center mb-4">Income & Expense Over Time</h2>
+
+  <!-- 🔽 Filter Controls -->
+  <div class="row justify-content-center mb-4">
+    <div class="col-md-3 mb-2">
+      <label for="startDate" class="form-label fw-bold">Start Date</label>
+      <input type="date" id="startDate" class="form-control" />
+    </div>
+    <div class="col-md-3 mb-2">
+      <label for="endDate" class="form-label fw-bold">End Date</label>
+      <input type="date" id="endDate" class="form-control" />
+    </div>
+    <div class="col-md-2 d-flex align-items-end mb-2">
+      <button id="filterButton" class="btn btn-primary w-100">Apply</button>
+    </div>
+  </div>
+
+  <!-- Chart Container -->
+  <div class="card shadow-sm mx-auto" style="max-width: 900px;">
+    <div class="card-body">
+      <canvas id="barChart" height="400"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  // ✅ Data passed from Flask:
+  // chart_data = [
+  //   { date: "2024-01-01", income: 2000, expense: 1000 },
+  //   { date: "2024-01-02", income: 500, expense: 800 },
+  //   ...
+  // ]
+  const allData = {{ chart_data | tojson }};
+  const ctx = document.getElementById("barChart");
+  let barChart;
+
+  // Render chart function
+  function renderBarChart(filteredData) {
+    const dates = filteredData.map(d => d.date);
+    const incomes = filteredData.map(d => d.income);
+    const expenses = filteredData.map(d => d.expense);
+
+    if (barChart) barChart.destroy();
+
+    barChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            label: "Income",
+            data: incomes,
+            backgroundColor: "rgba(76, 175, 80, 0.7)"
+          },
+          {
+            label: "Expense",
+            data: expenses,
+            backgroundColor: "rgba(244, 67, 54, 0.7)"
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            title: { display: true, text: "Date" },
+            ticks: { autoSkip: true, maxTicksLimit: 12 }
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Amount" }
+          }
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: "Income vs Expense by Date",
+            font: { size: 18 }
+          },
+          legend: { position: "top" }
+        }
+      }
+    });
+  }
+
+  // Filter data based on date range
+  function filterDataByDate(start, end) {
+    if (!start || !end) return allData;
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    return allData.filter(d => {
+      const date = new Date(d.date);
+      return date >= startDate && date <= endDate;
+    });
+  }
+
+  // Default chart (show all)
+  renderBarChart(allData);
+
+  // Filter button click
+  document.getElementById("filterButton").addEventListener("click", () => {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+    const filtered = filterDataByDate(start, end);
+    renderBarChart(filtered);
+  });
+</script>
+{% endblock %}
