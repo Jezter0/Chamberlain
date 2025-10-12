@@ -35,12 +35,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-  // ✅ Data passed from Flask:
-  // chart_data = [
-  //   { date: "2024-01-01", income: 2000, expense: 1000 },
-  //   { date: "2024-01-02", income: 500, expense: 800 },
-  //   ...
-  // ]
   const allData = {{ chart_data | tojson }};
   const ctx = document.getElementById("barChart");
   let barChart;
