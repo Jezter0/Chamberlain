@@ -180,7 +180,8 @@ def edit_transaction(transaction_id):
     if request.method == 'POST':
         transaction.amount = request.form['amount']
         transaction.description = request.form['description']
-        transaction.date = request.form['date']
+        transaction.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
+        
         db.session.commit()
         return redirect('/')
     
@@ -234,6 +235,7 @@ def register():
         return redirect("/")
     else:
         return render_template('register.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
