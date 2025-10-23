@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    View Transactions
+{% endblock %}
+
+{% block main %}
+<div class="container py-4">
+  <h2 class="text-center mb-4">All Transactions</h2>
+
+  <!-- Filter form -->
+  <form method="GET" action="{{ url_for('view') }}" class="d-flex justify-content-center mb-4 gap-2">
+    <select name="month" class="form-select w-auto">
+      <option value="">All Months</option>
+      {% for m in range(1, 13) %}
+        <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}</option>
+          {{ ["January","February","March","April","May","June","July","August","September","October","November","December"][m-1] }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <select name="year" class="form-select w-auto">
+      <option value="">All Years</option>
+      {% for y in years %}
+        <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+
+  {% if transactions %}
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered text-center align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th>Amount</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr>
+          <td>{{ t.date.strftime('%Y-%m-%d') }}</td>
+          <td class="{% if t.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
+            {{ t.transaction_type|capitalize }}
+          </td>
+          <td>{{ t.category }}</td>
+          <td>{{ t.description }}</td>
+          <td>${{ '%.2f'|format(t.amount) }}</td>
+          <td>
+            <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn btn-sm btn-warning">Edit</a>
+            <form action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this transaction?')">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-center text-muted mt-4">No transactions found for the selected period.</p>
+  {% endif %}
+</div>
+{% endblock %}

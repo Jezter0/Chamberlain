@@ -5,7 +5,7 @@ from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Enum, func, case
+from sqlalchemy import Enum, func, case, extract
 import bcrypt
 
 from helpers import login_required
@@ -126,6 +126,28 @@ def graphs():
     return render_template("charts.html", chart_data=chart_data)
 
 
+@app.route('/view', methods=['GET'])
+@login_required
+def view():
+    month = request.args.get('month', type=int)
+    year = request.args.get('year', type=int)
+
+    query = Transaction.query.filter_by(user_id=session['user_id'])
+
+    if month:
+        query = query.filter(extract('month', Transaction.date) == month)
+    if year:
+        query = query.filter(extract('year', Transaction.date) == year)
+
+    transactions = query.order_by(Transaction.date.desc()).all()
+
+    # generate list of available years for the dropdown
+    all_years = db.session.query(extract('year', Transaction.date)).distinct().order_by(extract('year', Transaction.date)).all()
+    years = [int(y[0]) for y in all_years if y[0]]
+
+    return render_template('view.html', transactions=transactions, years=years)
+
+
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
@@ -181,7 +203,7 @@ def edit_transaction(transaction_id):
         transaction.amount = request.form['amount']
         transaction.description = request.form['description']
         transaction.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
-        
+
         db.session.commit()
         return redirect('/')
     
